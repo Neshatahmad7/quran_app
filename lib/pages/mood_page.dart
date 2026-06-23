@@ -44,6 +44,12 @@ class _MoodPageState extends State<MoodPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? Colors.grey[850] : null;
+    final activeMoodTextColor = Colors.green.shade900;
+    final verseTextStyle = TextStyle(color: activeMoodTextColor, fontSize: 15);
+    final emptyTextStyle = TextStyle(color: isDark ? Colors.white70 : Colors.black54);
+    final iconColor = isDark ? Colors.green.shade900 : null;
     final verses = _store.getMoodVerses(widget.moodLabel);
 
     return Scaffold(
@@ -63,23 +69,25 @@ class _MoodPageState extends State<MoodPage> {
             const SizedBox(height: 12),
             Expanded(
               child: verses.isEmpty
-                  ? const Center(child: Text('No verses added yet.'))
+                ? Center(child: Text('No verses added yet.', style: emptyTextStyle))
                   : ListView.separated(
                       itemCount: verses.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
                         final verse = verses[i];
                         return Card(
+                          color: cardColor,
                           child: ListTile(
                             title: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 10.0),
                               child: Text(
                                 verse,
                                 textAlign: TextAlign.right,
+                                style: verseTextStyle,
                               ),
                             ),
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
+                              icon: Icon(Icons.delete_outline, color: iconColor),
                               onPressed: () {
                                 _store.removeMoodVerse(widget.moodLabel, verse);
                                 ScaffoldMessenger.of(context).showSnackBar(

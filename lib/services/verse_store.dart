@@ -43,6 +43,39 @@ class VerseStore extends ChangeNotifier {
   final List<String> _favorites = [];
   final List<VerseNote> _notes = [];
 
+  String _quranFontSize = 'Medium';
+
+  String get quranFontSizeLabel => _quranFontSize;
+
+  double get quranArabicFontSize {
+    switch (_quranFontSize) {
+      case 'Small':
+        return 16;
+      case 'Large':
+        return 24;
+      default:
+        return 20;
+    }
+  }
+
+  double get quranTranslationFontSize {
+    switch (_quranFontSize) {
+      case 'Small':
+        return 14;
+      case 'Large':
+        return 18;
+      default:
+        return 16;
+    }
+  }
+
+  void setQuranFontSize(String size) {
+    if (_quranFontSize != size && ['Small', 'Medium', 'Large'].contains(size)) {
+      _quranFontSize = size;
+      notifyListeners();
+    }
+  }
+
   List<String> getMoodVerses(String mood) {
     return List.unmodifiable(_moodVerses[mood] ?? []);
   }

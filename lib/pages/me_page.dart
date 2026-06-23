@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/app_settings.dart';
 import '../services/verse_store.dart';
 import 'favorites_page.dart';
 import 'notes_page.dart';
@@ -13,16 +14,19 @@ class MePage extends StatefulWidget {
 
 class _MePageState extends State<MePage> {
   final VerseStore _store = VerseStore.instance;
+  
 
   @override
   void initState() {
     super.initState();
     _store.addListener(_onStoreChanged);
+    AppSettings.instance.addListener(_onStoreChanged);
   }
 
   @override
   void dispose() {
     _store.removeListener(_onStoreChanged);
+    AppSettings.instance.removeListener(_onStoreChanged);
     super.dispose();
   }
 
@@ -32,6 +36,78 @@ class _MePageState extends State<MePage> {
     }
   }
 
+  Future<void> _showFontSizePicker(BuildContext context) async {
+    final options = ['Small', 'Medium', 'Large'];
+    String choice = _store.quranFontSizeLabel;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: options.map((opt) {
+          return RadioListTile<String>(
+            title: Text(opt),
+            value: opt,
+            groupValue: choice,
+            onChanged: (v) {
+              if (v != null) {
+                _store.setQuranFontSize(v);
+                Navigator.pop(ctx);
+              }
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showThemePicker(BuildContext context) async {
+    final options = ['System', 'Light', 'Dark'];
+    String choice = AppSettings.instance.themeModeLabel;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: options.map((opt) {
+          return RadioListTile<String>(
+            title: Text(opt),
+            value: opt,
+            groupValue: choice,
+            onChanged: (v) {
+              if (v != null) {
+                AppSettings.instance.setThemeMode(v);
+                Navigator.pop(ctx);
+              }
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showLanguagePicker(BuildContext context) async {
+    final options = ['English', 'Dari/Persian', 'Pashto'];
+    String choice = AppSettings.instance.languageLabel;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: options.map((opt) {
+          return RadioListTile<String>(
+            title: Text(opt),
+            value: opt,
+            groupValue: choice,
+            onChanged: (v) {
+              if (v != null) {
+                AppSettings.instance.setLanguage(v);
+                Navigator.pop(ctx);
+              }
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -39,17 +115,33 @@ class _MePageState extends State<MePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(radius: 40, child: Icon(Icons.person, size: 40)),
-          const SizedBox(height: 16),
-          const Text('Your Name', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          const Text('Email: user@example.com'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
           const Divider(),
           const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Settings'),
+          Card(
+            elevation: 1,
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.format_size),
+                  title: const Text('Quran Font Size'),
+                  subtitle: Text(_store.quranFontSizeLabel),
+                  onTap: () => _showFontSizePicker(context),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.color_lens),
+                  title: const Text('Theme'),
+                  subtitle: Text(AppSettings.instance.themeModeLabel),
+                  onTap: () => _showThemePicker(context),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: const Text('Language'),
+                  subtitle: Text(AppSettings.instance.languageLabel),
+                  onTap: () => _showLanguagePicker(context),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Card(

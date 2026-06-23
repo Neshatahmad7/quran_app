@@ -1,7 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
+import '../services/app_settings.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../services/verse_store.dart';
 
@@ -32,14 +33,51 @@ class QuranVerse {
   }
 }
 
+// cache translation maps per language
+final Map<String, Map<int, Map<int, String>>> _translationCache = {};
+
+Future<void> _ensureTranslationsLoaded(String lang) async {
+  if (lang == 'English' || _translationCache.containsKey(lang)) return;
+
+  final fileName = lang == 'Dari/Persian' ? 'assets/dari_translation.txt' : 'assets/pashto_translation.txt';
+  final content = await rootBundle.loadString(fileName);
+  final map = <int, Map<int, String>>{};
+  for (final line in content.split('\n')) {
+    if (line.trim().isEmpty) continue;
+    final parts = line.split('|');
+    if (parts.length < 3) continue;
+    final s = int.tryParse(parts[0]);
+    final a = int.tryParse(parts[1]);
+    final text = parts.sublist(2).join('|').trim();
+    if (s == null || a == null) continue;
+    map.putIfAbsent(s, () => {})[a] = text;
+  }
+  _translationCache[lang] = map;
+}
+
 Future<List<QuranVerse>> _loadQuranVerses(int surahNumber) async {
   final jsonString = await rootBundle.loadString('assets/quran.json');
   final data = jsonDecode(jsonString) as Map<String, dynamic>;
   final verses = data['$surahNumber'] as List<dynamic>?;
   if (verses == null) return [];
 
+  final lang = AppSettings.instance.languageLabel;
+  await _ensureTranslationsLoaded(lang);
+  final translationsForSurah = _translationCache[lang]?[surahNumber];
+
   return verses.map((dynamic item) {
-    return QuranVerse.fromJson(item as Map<String, dynamic>);
+    final json = item as Map<String, dynamic>;
+    final base = QuranVerse.fromJson(json);
+    final override = translationsForSurah != null ? translationsForSurah[base.ayah] : null;
+    if (override != null && override.isNotEmpty) {
+      return QuranVerse(
+        ayah: base.ayah,
+        arabic: base.arabic,
+        translation: override,
+        isBismillah: base.isBismillah,
+      );
+    }
+    return base;
   }).toList();
 }
 
@@ -156,6 +194,12 @@ class QuranPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surahCardColor = isDark ? Colors.grey[850]! : Colors.green.shade50;
+    final surahBorderColor = isDark ? Colors.grey[700]! : Colors.green.shade100;
+    final surahTitleColor = isDark ? Colors.white : null;
+    final surahSubtitleColor = isDark ? Colors.grey[300] : null;
+
     final surahs = [
       {'arabic': 'الفاتحة', 'english': 'The Opening'},
       {'arabic': 'البقرة', 'english': 'The Cow'},
@@ -284,9 +328,9 @@ class QuranPage extends StatelessWidget {
         return Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.green.shade100),
+            side: BorderSide(color: surahBorderColor),
           ),
-          color: Colors.green.shade50,
+          color: surahCardColor,
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: Colors.green.shade800,
@@ -295,8 +339,8 @@ class QuranPage extends StatelessWidget {
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
               ),
             ),
-            title: Text(arabic, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(english),
+            title: Text(arabic, style: TextStyle(fontWeight: FontWeight.w600, color: surahTitleColor)),
+            subtitle: Text(english, style: TextStyle(color: surahSubtitleColor)),
             onTap: () async {
               final navigator = Navigator.of(context);
               final verse = await navigator.push<String>(
@@ -335,10 +379,34 @@ class SurahPage extends StatefulWidget {
 }
 
 class _SurahPageState extends State<SurahPage> {
-  late final Future<List<QuranVerse>> _versesFuture = _loadQuranVerses(widget.surahIndex);
+  late Future<List<QuranVerse>> _versesFuture;
+
+  void _reloadVerses() {
+    setState(() {
+      _versesFuture = _loadQuranVerses(widget.surahIndex);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _versesFuture = _loadQuranVerses(widget.surahIndex);
+    AppSettings.instance.addListener(_reloadVerses);
+  }
+
+  @override
+  void dispose() {
+    AppSettings.instance.removeListener(_reloadVerses);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final verseCardColor = isDark ? Colors.grey[850]! : Colors.green.shade50;
+    final verseBorderColor = isDark ? Colors.grey[700]! : Colors.green.shade100;
+    final translationTextColor = isDark ? Colors.grey[300]! : Colors.black54;
+
     return Scaffold(
       appBar: AppBar(title: Text('${widget.arabicName} — ${widget.englishName}')),
       body: FutureBuilder<List<QuranVerse>>(
@@ -368,9 +436,9 @@ class _SurahPageState extends State<SurahPage> {
               return Card(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.green.shade100),
+                  side: BorderSide(color: verseBorderColor),
                 ),
-                color: Colors.green.shade50,
+                color: verseCardColor,
                 child: ListTile(
                   trailing: PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert),
@@ -399,7 +467,7 @@ class _SurahPageState extends State<SurahPage> {
                       Text(
                         verse.arabic,
                         textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: VerseStore.instance.quranArabicFontSize, fontWeight: FontWeight.w700),
                       ),
                       if (!verse.isBismillah) ...[
                         const SizedBox(height: 10),
@@ -421,7 +489,7 @@ class _SurahPageState extends State<SurahPage> {
                       const SizedBox(height: 12),
                       Text(
                         translationLabel,
-                        style: const TextStyle(color: Colors.black54),
+                        style: TextStyle(color: translationTextColor, fontSize: VerseStore.instance.quranTranslationFontSize),
                       ),
                     ],
                   ),

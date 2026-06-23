@@ -100,6 +100,21 @@ class _HomePageState extends State<HomePage> {
     return '${_twoDigits(value.hour)}:${_twoDigits(value.minute)}:${_twoDigits(value.second)}';
   }
 
+  Duration _timeUntil(String time) {
+    DateTime target = _toToday(time);
+    if (target.isBefore(_now) || target.isAtSameMomentAs(_now)) {
+      target = target.add(const Duration(days: 1));
+    }
+    return target.difference(_now);
+  }
+
+  String _formatDurationHMS(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60);
+    final s = d.inSeconds.remainder(60);
+    return '${_twoDigits(h)}:${_twoDigits(m)}:${_twoDigits(s)}';
+  }
+
   List<Map<String, Object>> get _scheduleItems {
     return [
       {'label': 'Fajr', 'time': _times['Fajr']!, 'icon': Icons.nights_stay},
@@ -112,6 +127,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMoodRow(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final moodTextColor = isDark ? Colors.green.shade900 : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -142,7 +159,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Icon(iconData, size: 18, color: Colors.green.shade800),
                       const SizedBox(width: 6),
-                      Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
+                      Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: moodTextColor)),
                     ],
                   ),
                 ),
@@ -205,6 +222,9 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Text('Next Prayer', style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 12)),
                           const SizedBox(height: 2),
+                          // show remaining time then the next prayer label
+                          Text('${_formatDurationHMS(_timeUntil(_times[nextPrayer]!))} remaining', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600, fontSize: 12)),
+                          const SizedBox(height: 2),
                           Text(nextPrayer, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700, fontSize: 14)),
                         ],
                       ),
@@ -236,7 +256,17 @@ class _HomePageState extends State<HomePage> {
                   size: 18,
                 ),
                 title: Text(label, style: TextStyle(fontSize: 13, fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500, color: isCurrent ? Colors.green.shade900 : null)),
-                trailing: Text(time, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isCurrent ? Colors.green.shade900 : null)),
+                trailing: isNext
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(time, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isCurrent ? Colors.green.shade900 : null)),
+                          const SizedBox(height: 2),
+                          Text(_formatDurationHMS(_timeUntil(label == 'Sunrise' ? _sunriseTime : time)), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      )
+                    : Text(time, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isCurrent ? Colors.green.shade900 : null)),
               ),
             );
           }),

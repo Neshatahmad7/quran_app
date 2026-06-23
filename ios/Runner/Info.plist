@@ -68,5 +68,7 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Location is used to calculate local prayer times accurately.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Motion access is used to determine device orientation for the Qibla compass.</string>
 </dict>
 </plist>
