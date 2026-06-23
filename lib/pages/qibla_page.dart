@@ -88,8 +88,8 @@ class _QiblaPageState extends State<QiblaPage> {
     // direction to rotate needle so it points to Qibla relative to device orientation
     final direction = (qibla - (_heading ?? 0) + 360) % 360;
 
-    const double _alignmentThreshold = 8.0; // degrees tolerance
-    final bool aligned = direction <= _alignmentThreshold || direction >= 360 - _alignmentThreshold;
+    const double alignmentThreshold = 8.0; // degrees tolerance
+    final bool aligned = direction <= alignmentThreshold || direction >= 360 - alignmentThreshold;
 
     return Center(
       child: Column(
@@ -130,10 +130,10 @@ class _QiblaPageState extends State<QiblaPage> {
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: aligned ? Colors.greenAccent.withOpacity(0.95) : Colors.grey.shade200,
+                      color: aligned ? Colors.greenAccent.withValues(alpha: 0.95) : Colors.grey.shade200,
                       shape: BoxShape.circle,
                       boxShadow: aligned
-                          ? [BoxShadow(color: Colors.greenAccent.withOpacity(0.6), blurRadius: 12, spreadRadius: 2)]
+                          ? [BoxShadow(color: Colors.greenAccent.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2)]
                           : null,
                     ),
                     child: Icon(

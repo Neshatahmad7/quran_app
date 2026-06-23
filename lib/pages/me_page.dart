@@ -136,7 +136,7 @@ class _MePageState extends State<MePage> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.language),
-                  title: const Text('Language'),
+                  title: const Text('Quran Translation Language'),
                   subtitle: Text(AppSettings.instance.languageLabel),
                   onTap: () => _showLanguagePicker(context),
                 ),
