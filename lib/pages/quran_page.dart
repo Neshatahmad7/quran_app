@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../services/app_settings.dart';
 
@@ -35,6 +36,48 @@ class QuranVerse {
 
 // cache translation maps per language
 final Map<String, Map<int, Map<int, String>>> _translationCache = {};
+
+const Set<int> _availableSurahAudio = {
+  1,
+  2,
+  78,
+  79,
+  80,
+  81,
+  82,
+  83,
+  84,
+  85,
+  86,
+  87,
+  88,
+  89,
+  90,
+  91,
+  92,
+  93,
+  94,
+  95,
+  96,
+  97,
+  98,
+  99,
+  100,
+  101,
+  102,
+  103,
+  104,
+  105,
+  106,
+  107,
+  108,
+  109,
+  110,
+  111,
+  112,
+  113,
+  114,
+};
 
 Future<void> _ensureTranslationsLoaded(String lang) async {
   if (lang == 'English' || _translationCache.containsKey(lang)) return;
@@ -380,6 +423,8 @@ class SurahPage extends StatefulWidget {
 
 class _SurahPageState extends State<SurahPage> {
   late Future<List<QuranVerse>> _versesFuture;
+  late final AudioPlayer _audioPlayer;
+  bool _isPlaying = false;
 
   void _reloadVerses() {
     setState(() {
@@ -392,12 +437,80 @@ class _SurahPageState extends State<SurahPage> {
     super.initState();
     _versesFuture = _loadQuranVerses(widget.surahIndex);
     AppSettings.instance.addListener(_reloadVerses);
+    _audioPlayer = AudioPlayer();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
+    });
+    _audioPlayer.onPlayerComplete.listen((event) {
+      setState(() {
+        _isPlaying = false;
+      });
+    });
   }
 
   @override
   void dispose() {
     AppSettings.instance.removeListener(_reloadVerses);
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleAudio() async {
+    final hasAudio = _availableSurahAudio.contains(widget.surahIndex);
+    if (!hasAudio) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Audio does not exist in this version of app')),
+      );
+      return;
+    }
+
+    if (_isPlaying) {
+      await _audioPlayer.stop();
+      return;
+    }
+
+    final assetPath = 'audio/${widget.surahIndex}.mp3';
+    try {
+      await _audioPlayer.play(AssetSource(assetPath));
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to play audio')),
+      );
+    }
+  }
+
+  Widget _buildAudioHeader(Color cardColor, Color borderColor) {
+    final hasAudio = _availableSurahAudio.contains(widget.surahIndex);
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: borderColor),
+      ),
+      color: cardColor,
+      child: ListTile(
+        leading: Icon(
+          hasAudio ? (_isPlaying ? Icons.stop_circle : Icons.play_circle_fill) : Icons.volume_off,
+          color: Colors.green.shade800,
+          size: 36,
+        ),
+        title: Text(
+          hasAudio ? 'Audio playback available' : 'Audio not available',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          hasAudio
+              ? (_isPlaying ? 'Tap to stop playback' : 'Tap to start playback')
+              : 'Audio does not exist in this version of app',
+        ),
+        trailing: IconButton(
+          icon: Icon(hasAudio ? (_isPlaying ? Icons.stop : Icons.play_arrow) : Icons.help_outline),
+          onPressed: _toggleAudio,
+        ),
+      ),
+    );
   }
 
   @override
@@ -426,9 +539,13 @@ class _SurahPageState extends State<SurahPage> {
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: verses.length,
+            itemCount: verses.length + 1,
             itemBuilder: (context, i) {
-              final verse = verses[i];
+              if (i == 0) {
+                return _buildAudioHeader(verseCardColor, verseBorderColor);
+              }
+
+              final verse = verses[i - 1];
               final translationLabel = verse.translation.isNotEmpty
                   ? verse.translation
                   : 'Translation not available yet.';
